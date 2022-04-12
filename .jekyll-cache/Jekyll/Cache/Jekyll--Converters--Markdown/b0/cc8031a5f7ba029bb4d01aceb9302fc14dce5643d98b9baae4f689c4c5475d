@@ -1,0 +1,57 @@
+I"�<h1 id="learning-binary-exploitation--4">Learning binary exploitation — 4</h1>
+
+<h1 id="format-string-vulnerability">Format String Vulnerability</h1>
+
+<p>This one was quite easy to understand compared to the other concepts.</p>
+
+<p>So, we have format specifiers in print statements to specify the type of data we’re printing. For example, in C:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>char astring\[10\];  
+printf("We are printing a string: %s", astring);
+</code></pre></div></div>
+
+<p>Here %s is the format specifier.</p>
+
+<p>There are several format specifers:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>%s -&gt; string  
+%p -&gt; prints the memory address in hexadecimal  
+%d -&gt; int (decimal)  
+%f -&gt; float  
+%c -&gt; char  
+%x -&gt; hexadecimal  
+%u -&gt; unsigned int  
+**%n -&gt; writes the number of characters into a pointer**
+</code></pre></div></div>
+
+<p>Format string vulnerability occurs when the format specifier is not provided in the print statement. That makes it possible to send string format specifiers like <code class="language-plaintext highlighter-rouge">%p</code></p>
+
+<p>Let’s say we have some program like this:</p>
+
+<p><code class="language-plaintext highlighter-rouge">
+#include &lt;stdio.h&gt;  
+int main(int argc, char\*\* argv\[1\]) {  
+    char buffer\[64\];   
+    strcpy(buffer, argv\[1\]);  
+    printf(buffer);  
+    return 0;   
+}
+</code><img src="/assets/images/learning-binary-exploitation-4/bin-exp-4.png" alt="" /></p>
+
+<p>It prints some memory addresses from the stack. Looking closely, there’s 0x41414141, our input “AAAA”.</p>
+
+<p>So, if we replace the %p printing the address of our input with <code class="language-plaintext highlighter-rouge">%n</code> it will send the length of the string thus far, into the address 0x41414141 which doesn’t exist which will result in a segmentation fault.</p>
+
+<h1 id="injecting-shellcode-using-this-method">Injecting Shellcode using this method</h1>
+
+<p>The shared libraries we import into our program contain the functions and their respective addresses, that’s how we are able to use those functions. For example: strcpy from string.h or printf from stdio.h</p>
+
+<p>When the program is calling shared libraries and those are dynamically linked then GOT(Global Offset Table) takes on the responsibility of storing the actual address of those functions<strong>.</strong> GOT is basically a table that simply stores the functions and address of their function calls. Of course, by default the addresses are UNDEFINED, I mean the function hasn’t been called yet, how is it supposed to know anything, right ?</p>
+
+<p>So, when the control flow reaches the function call, the control is transferred to the dynamic linker which is then responsible for updating the GOT entry for that specific function. Then the subsequent calls are made using the address stored in GOT.</p>
+
+<p>Now, based on this explanation, we can safely say that GOT stores the actual address of all the functions that are called in the program. So if we can somehow alter those addresses, or completely change those to address of some other function… say <code class="language-plaintext highlighter-rouge">system()</code> we can get some really interesting results.<br />
+We can get a shell by running <code class="language-plaintext highlighter-rouge">system(/bin/sh).</code></p>
+
+<p><strong><em>There’s a more detailed explanation here. I’ve used his lectures for reference</em></strong>: <a href="https://github.com/r0hi7/BinExp/blob/master/Lecture6/README.md">https://github.com/r0hi7/BinExp/blob/master/Lecture6/README.md</a></p>
+:ET
