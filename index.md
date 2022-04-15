@@ -6,4 +6,4 @@ permalink: /
 
 # piyushpradhan$ ~
 
-Hello! I post about the things that I've been working on.
+Hello! The person here is an university undergrad with computer science background who likes to keep track of his progress.
