@@ -3,6 +3,8 @@ layout: default
 title: Playing around on flaws.cloud
 ---
 
+# Cloud security practice with flaws.cloud
+
 In the past week, I've been spending my time playing around with cloud services, deploying random stuff just to try and figure out how it's being used.
 I also wanted to have a vulnerable environment to try and extract something that isn't usually made available.
 It was then when I stumbled across this `flaws.cloud`.
