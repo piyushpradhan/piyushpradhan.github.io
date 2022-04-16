@@ -98,7 +98,7 @@ _SPOILER ALERT_ I didn't have enough permissions to access some of those buckets
 
 # Moving on to Level 4
 
-To clear this level, We have to get access to a webpage at [](http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud)
+To clear this level, We have to get access to a webpage at [ http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud](http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud)
 
 **A snapshot of that EC2 instance was taken right after setting up nginx on that website.**
 
