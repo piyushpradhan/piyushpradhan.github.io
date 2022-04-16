@@ -1,0 +1,36 @@
+I"<p>In the past week, I’ve been spending my time playing around with cloud services, deploying random stuff just to try and figure out how it’s being used.
+I also wanted to have a vulnerable environment to try and extract something that isn’t usually made available.
+It was then when I stumbled across this <code class="language-plaintext highlighter-rouge">flaws.cloud</code>.</p>
+
+<p>It is basically a cloud CTF, deployed on AWS. Explains about some common misconfigurations and how to take advantage of those mistakes.</p>
+
+<h1 id="lets-start-with-level-1">Let’s start with Level 1</h1>
+
+<h3 id="finding-the-subdomain-that-contains-s3-bucket-for-flawscloud">Finding the subdomain that contains s3 bucket for <code class="language-plaintext highlighter-rouge">flaws.cloud</code></h3>
+
+<ul>
+  <li>AWS S3 buckets follow this pattern</li>
+</ul>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bucket-name.s3.region.amazonaws.com
+bucket-name.s3.amazonaws.com
+</code></pre></div></div>
+
+<p>In this case, a little bit of google dorking will be enough</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>flaws.cloud site:s3.amazonaws.com
+</code></pre></div></div>
+
+<p>The first link had the contents of the s3 bucket in XML format
+I thought I’ll be able to find something interesting in robots.txt file…
+<img src="/assets/images/flaws-cloud/xml-in-bucket.png" alt="" /></p>
+
+<p>but…
+<img src="/assets/images/flaws-cloud/robots-contents.png" alt="" /></p>
+
+<p>Looking further I found something that actually was a hint
+<img src="/assets/images/flaws-cloud/actual-hint.png" alt="" /></p>
+
+<p>Following that html file…
+<img src="/assets/images/flaws-cloud/secret-html.png" alt="" /></p>
+:ET

