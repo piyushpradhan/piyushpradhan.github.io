@@ -1,0 +1,95 @@
+I"Y<p>In the past week, I’ve been spending my time playing around with cloud services, deploying random stuff just to try and figure out how it’s being used.
+I also wanted to have a vulnerable environment to try and extract something that isn’t usually made available.
+It was then when I stumbled across this <code class="language-plaintext highlighter-rouge">flaws.cloud</code>.</p>
+
+<p>It is basically a cloud CTF, deployed on AWS. Explains about some common misconfigurations and how to take advantage of those mistakes.</p>
+
+<h1 id="lets-start-with-level-1">Let’s start with Level 1</h1>
+
+<h3 id="finding-the-subdomain-that-contains-s3-bucket-for-flawscloud">Finding the subdomain that contains s3 bucket for <code class="language-plaintext highlighter-rouge">flaws.cloud</code></h3>
+
+<ul>
+  <li>AWS S3 buckets follow this pattern</li>
+</ul>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bucket-name.s3.region.amazonaws.com
+bucket-name.s3.amazonaws.com
+</code></pre></div></div>
+
+<p>In this case, a little bit of google dorking will be enough</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>flaws.cloud site:s3.amazonaws.com
+</code></pre></div></div>
+
+<p><strong>S3 Buckets should configured so that they are not publicly available. If the bucket policy is modified to allow everybody “s3:GetObject” privilege, then anyone can access the bucket.</strong></p>
+
+<p>The first link had the contents of the s3 bucket in XML format
+I thought I’ll be able to find something interesting in robots.txt file…
+<img src="/assets/images/flaws-cloud/xml-in-bucket.png" alt="" /></p>
+
+<p>but…
+<img src="/assets/images/flaws-cloud/robots-contents.png" alt="" /></p>
+
+<p>Looking further I found something that actually was a hint
+<img src="/assets/images/flaws-cloud/actual-hint.png" alt="" />
+<strong>secret-dd02c7c.html</strong> was the page I was looking for.
+That page gave me the link to the <strong>Second Level</strong></p>
+
+<h1 id="levelling-up-level-2">Levelling up (Level 2)</h1>
+
+<p>For this challenge, use of <code class="language-plaintext highlighter-rouge">aws-cli</code> was required.</p>
+
+<p>Setting it up is fairly easy, take the <strong>Secret Key</strong> and <strong>Access Key</strong> from your own AWS account and use those to configure awscli profile</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws --profile configure &lt;profile-name&gt;
+</code></pre></div></div>
+
+<p>After that just enter the keys and an output format.</p>
+
+<p>Now, that we have an AWS account and the bucket url we can try to list the contents of the bucket.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws s3 --profile &lt;profile-name&gt; ls s3://&lt;bucket-url&gt;
+</code></pre></div></div>
+
+<p>The contents of this bucket practically showed me the way to level 3.</p>
+
+<h1 id="reached-level-3">Reached Level 3</h1>
+
+<p>Heading over to the url we’re provided, it’s pretty obvious that there’s a .git directory inside that bucket
+<img src="/assets/images/flaws-cloud/git-directory-xml.png" alt="" /></p>
+
+<p>Then I downloaded the entire bucket, so that I can extract something from the .git directory.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aws s3 sync s3://level3-9afd3927f195e10225021a578e6f78df.flaws.cloud/ . --no-sign-request --region us-east-1
+</code></pre></div></div>
+
+<p>By the way, we need to add this <strong>–no-sign-request</strong> flag because credentials were not loaded while making the request, probably because the bucket didn’t require us to have any.</p>
+
+<p>I used <a href="https://github.com/internetwache/GitTools.git">GitTools</a> to extract information from the .git directory. This game me the AWS access key for “Scott Flaws” account. I put those in <code class="language-plaintext highlighter-rouge">~/.aws/credentials</code> file and guess what, those keys weren’t revoked and now I have access to his account! That was easy.
+The first thing I did after acquiring keys to his account, listed some buckets!</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kali:level_3/ (b64c8dc✗) $ aws s3 --profile scott_flaws ls
+2017-02-12 16:31:07 2f4e53154c0a7fd086a04a12a452c2a4caed8da0.flaws.cloud
+2017-05-29 12:34:53 config-bucket-975426262029
+2017-02-12 15:03:24 flaws-logs
+2017-02-04 22:40:07 flaws.cloud
+2017-02-23 20:54:13 level2-c8b217a33fcf1f839f6f1f73a00a9ae7.flaws.cloud
+2017-02-26 13:15:44 level3-9afd3927f195e10225021a578e6f78df.flaws.cloud
+2017-02-26 13:16:06 level4-1156739cfb264ced6de514971a4bef68.flaws.cloud
+2017-02-26 14:44:51 level5-d2891f604d2061b6977c2481b0c8333e.flaws.cloud
+2017-02-26 14:47:58 level6-cc4c404a8a8b876167f5e70a7d8c9880.flaws.cloud
+2017-02-26 15:06:32 theend-797237e8ada164bf9f12cebf93b282cf.flaws.cloud
+</code></pre></div></div>
+
+<p>Looks like I have found the way for all the levels.</p>
+
+<p><em>SPOILER ALERT</em> I didn’t have enough permissions to access some of those buckets. But bucket 4 was available.</p>
+
+<h1 id="moving-on-to-level-4">Moving on to Level 4</h1>
+
+<p>To clear this level, We have to get access to a webpage at <a href="http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud"></a></p>
+
+<p><strong>A snapshot of that EC2 instance was taken right after setting up nginx on that website.</strong></p>
+
+<p>This is where I had to explore the aws cli a little more. Some buckets aren’t made public and are only accessible by some selected accounts.</p>
+:ET
