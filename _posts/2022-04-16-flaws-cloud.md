@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Playing around on flaws.cloud
+title: Cloud security practice with flaws.cloud
 ---
 
 # Cloud security practice with flaws.cloud
@@ -15,7 +15,7 @@ It is basically a cloud CTF, deployed on AWS. Explains about some common misconf
 
 ### Finding the subdomain that contains s3 bucket for `flaws.cloud`
 
-- AWS S3 buckets follow this pattern
+AWS S3 buckets follow this pattern
 
 ```bash
 bucket-name.s3.region.amazonaws.com
