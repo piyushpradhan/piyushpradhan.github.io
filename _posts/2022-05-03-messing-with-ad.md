@@ -40,7 +40,10 @@ try
         ResultPropertyCollection resPropCollection = result.Properties;
         foreach (string prop in resPropCollection.PropertyNames)
         {
-            Console.WriteLine(prop);
+            foreach(Object value in resPropCollection)
+            {
+                Console.WriteLine("{0} - {1}", prop, value);
+            }
         }
     }
 }
@@ -50,5 +53,47 @@ catch (Exception e)
 }
 ```
 
-The results obtained are of type "SearchResult" which just contain a set property and their respective values, pretty much like JSON. Just do result[key] and you'll be given a value.
+The results obtained are of type "SearchResult" which just contain a set property and their respective values, pretty much like JSON. Just do result[key] and you'll be given a value. By the way, there has to be a better way to print results there's no way using nested loops is the only way of printing results, is it ?
+
+Anyway, next I had to understand LDAP filters, which was pretty easy once you understand the snytax. After that you just have to match the attribute names and that's it.
+
+Here's the results of one SearchResult, there are probably the attributes available which we can use in LDAP filters
+
+```
+name : John Doe
+lastlogoff : 0
+lastlogon : 132962424065881972
+instancetype : 4
+whenchanged : 5/3/2022 12:50:07 AM
+lastlogontimestamp : 132960126072754036
+pwdlastset : 132959275004082512
+primarygroupid : 513
+distinguishedname : CN=John Doe,CN=Users,DC=VULN,DC=local
+accountexpires : 9223372036854775807
+cn : John Doe
+badpwdcount : 0
+adspath : LDAP://10.0.2.7/CN=John Doe,CN=Users,DC=VULN,DC=local
+dscorepropagationdata : 1/1/1601 12:00:00 AM
+displayname : John Doe
+Ewhencreated : 5/2/2022 1:11:40 AM
+codepage : 0
+logoncount : 41
+useraccountcontrol : 66048
+samaccounttype : 805306368
+objectsid : System.Byte[]
+objectguid : System.Byte[]
+objectclass : top
+objectclass : person
+objectclass : organizationalPerson
+objectclass : user
+Eusncreated : 20558
+sn : Doe
+usnchanged : 36924
+countrycode : 0
+samaccountname : JDoe
+givenname : John
+badpasswordtime : 132961243653455721
+userprincipalname : JDoe@VULN.local
+objectcategory : CN=Person,CN=Schema,CN=Configuration,DC=VULN,DC=local
+```
 
