@@ -11,25 +11,44 @@ Windows 10 - B (Foo Bar's machine)
 
 My main motive is to understand how it all works BTS so that it is easier for me to attack it. I'll be exploring various methods of enumerating AD and making LDAP queries, learning how "crackmapexec" works in the in the process
 
-## Get-DomainPolicy
+So, I finally decided to learn a bit about LDAP queries and make a CLI tool to query active directory. One way to go about doing that is using C# with .NET framework, it was quite timetaking to set it up but after that's done. I realised I don't really know how to make C# apps from scratch.
 
-It's supposed to show us the policies defined for this AD setup. For example, password policy like minimum and maximum age of password, what the password complexity should be stuff like that.
+It was pretty clear what I had to do next, not learning C# but start writing random lines of code hoping Intellisense will do everything for me.
+After googling stuff for time, I figured out how to make a query against AD.
 
-![Get-DomainPolicy](/assets/images/active-directory/Get-DomainPolicy-result.png)
+```
+DirectoryEntry dirEntry = new DirectoryEntry("LDAP://10.0.2.7", "JDoe", "FirstTarget1");
+DirectorySearcher dirSearcher = new DirectorySearcher(dirEntry);
+```
 
-## Get-DomainController
+There's a lot going on in these two lines, I realised a little later when I actually tried to understand what this is doing. This "DirectoryEntry" class is an encapsulation of objects in ADDS which can be provided to query, update or manage the Active Directory entries. We are allowed to a do lot more than just querying entries, with certain privileges of course.
+In this case, as I am running this code on a domain user and not on a domain controller I have supplied the remote path of the Domain Controller's LDAP server, along with my (domain user's) credentials. So, now it knows where to look for entries.
+The "DirectorySearcher" actually uses the "DirectoryEntry" class to perform search operation based on the parameters supplied using LDAP.
 
-This one is to find the domain controllers, in my AD setup, I only have one domain controller.
+Oh about the parameters that I was talking about, among them is one called "Filter", it's pretty obvious what it is. We can use LDAP filter syntax to construct a filter string and set it to DirectorySearcher object and it will make LDAP query with that filter.
 
-![Get-DomainController](/assets/images/active-directory/Get-DomainController-result.png)
-This image verifies that we're getting the right results
+```
+DirectoryEntry dirEntry = new DirectoryEntry("LDAP://10.0.2.7", "JDoe", "FirstTarget1");
+DirectorySearcher dirSearcher = new DirectorySearcher(dirEntry);
+dirSearcher.Filter = "(&(objectCategory=user)(objectClass=user))";
+try
+{
+    foreach (SearchResult result in dirSearcher.FindAll())
+    {
+        DirectoryEntry resDe = result.GetDirectoryEntry();
 
-## Get-DomainUser
+        ResultPropertyCollection resPropCollection = result.Properties;
+        foreach (string prop in resPropCollection.PropertyNames)
+        {
+            Console.WriteLine(prop);
+        }
+    }
+}
+catch (Exception e)
+{
+    Console.WriteLine("[!] Something went wrong");
+}
+```
 
-Next is enumerating the users, this command gives us a lot of details.
-"John Doe" and "Foo Bar" are the names of the users I had configured on this AD setup, this lists all the important details about them and their computers, groups everything
+The results obtained are of type "SearchResult" which just contain a set property and their respective values, pretty much like JSON. Just do result[key] and you'll be given a value.
 
-![Get-DomainUser](/assets/images/active-directory/Get-DomainUser-result.png)
-
-This does not look good, the description is clearly giving away the password for the SQL service account
-![SQL service accountl](/assets/images/active-directory/SQL-service-compromised.png)
