@@ -1,7 +1,9 @@
 ---
 layout: default
-title: Active Directory
+title: Enumerating active directory the weird way
 ---
+
+# Enumerating active directory the hard way
 
 ### Here's my active directory setup:
 
@@ -9,12 +11,12 @@ Windows server 2012 R2 Datacenter Evaluation
 Windows 10 - A (John Doe's machine)
 Windows 10 - B (Foo Bar's machine)
 
-My main motive is to understand how it all works BTS so that it is easier for me to attack it. I'll be exploring various methods of enumerating AD and making LDAP queries, learning how "crackmapexec" works in the in the process
+My main motive is to understand how it all works BTS so that it is easier for me to attack it.
 
-So, I finally decided to learn a bit about LDAP queries and make a CLI tool to query active directory. One way to go about doing that is using C# with .NET framework, it was quite timetaking to set it up but after that's done. I realised I don't really know how to make C# apps from scratch.
+So, I decided to learn a bit about LDAP queries and make a CLI tool to query active directory. One way to go about doing that is using C# with .NET framework, it was quite time-taking to set it up but after that's done I realised I don't really know how to make C# apps from scratch.
 
 It was pretty clear what I had to do next, not learning C# but start writing random lines of code hoping Intellisense will do everything for me.
-After googling stuff for time, I figured out how to make a query against AD.
+After googling stuff for some time, I figured out how to make a query against AD.
 
 ```
 DirectoryEntry dirEntry = new DirectoryEntry("LDAP://10.0.2.7", "JDoe", "FirstTarget1");
@@ -97,3 +99,10 @@ userprincipalname : JDoe@VULN.local
 objectcategory : CN=Person,CN=Schema,CN=Configuration,DC=VULN,DC=local
 ```
 
+Based on this result, I can make some functions with pre-defined LDAP filters.
+Well, that was easy. Now looking at my code I feel like it can be optimized a lot. But anyway, it works for now. I've also added some functions that will provide me with information about the computers on the domain.
+
+Something like this.
+![computer-info](/assets/images/active-directory/active-directory-computers.png)
+
+The script itself is pretty simple and straightforward. I'll probably add a few more things into it as I learn more about AD.
