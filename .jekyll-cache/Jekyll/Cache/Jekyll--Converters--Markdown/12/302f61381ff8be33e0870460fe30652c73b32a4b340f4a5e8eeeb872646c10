@@ -1,42 +1,34 @@
----
-layout: default
-title: Learning binary exploitation — 4
----
+I"�<h1 id="learning-binary-exploitation--4">Learning binary exploitation — 4</h1>
 
-# Learning binary exploitation — 4
+<h1 id="format-string-vulnerability">Format String Vulnerability</h1>
 
-# Format String Vulnerability
+<p>This one was quite easy to understand compared to the other concepts.</p>
 
-This one was quite easy to understand compared to the other concepts.
+<p>So, we have format specifiers in print statements to specify the type of data we’re printing. For example, in C:</p>
 
-So, we have format specifiers in print statements to specify the type of data we’re printing. For example, in C:
-
-```
-char astring\[10\];
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>char astring\[10\];
 printf("We are printing a string: %s", astring);
-```
+</code></pre></div></div>
 
-Here %s is the format specifier.
+<p>Here %s is the format specifier.</p>
 
-There are several format specifers:
+<p>There are several format specifers:</p>
 
-```
-%s -> string
-%p -> prints the memory address in hexadecimal
-%d -> int (decimal)
-%f -> float
-%c -> char
-%x -> hexadecimal
-%u -> unsigned int
-**%n -> writes the number of characters into a pointer**
-```
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>%s -&gt; string
+%p -&gt; prints the memory address in hexadecimal
+%d -&gt; int (decimal)
+%f -&gt; float
+%c -&gt; char
+%x -&gt; hexadecimal
+%u -&gt; unsigned int
+**%n -&gt; writes the number of characters into a pointer**
+</code></pre></div></div>
 
-Format string vulnerability occurs when the format specifier is not provided in the print statement. That makes it possible to send string format specifiers like `%p`
+<p>Format string vulnerability occurs when the format specifier is not provided in the print statement. That makes it possible to send string format specifiers like <code class="language-plaintext highlighter-rouge">%p</code></p>
 
-Let’s say we have some program like this:
+<p>Let’s say we have some program like this:</p>
 
-````
-#include <stdio.h>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#include &lt;stdio.h&gt;
 int main(int argc, char\*\* argv\[1\]) {
     char buffer\[64\];
     strcpy(buffer, argv\[1\]);
@@ -62,5 +54,6 @@ Now, based on this explanation, we can safely say that GOT stores the actual add
 We can get a shell by running `system(/bin/sh).`
 
 **_There’s a more detailed explanation here. I’ve used his lectures for reference_**: [https://github.com/r0hi7/BinExp/blob/master/Lecture6/README.md](https://github.com/r0hi7/BinExp/blob/master/Lecture6/README.md)
-````
+</code></pre></div></div>
 
+:ET

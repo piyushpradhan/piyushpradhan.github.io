@@ -1,0 +1,44 @@
+I"�<h1 id="flaws-2-challenge">FLAWS 2 challenge</h1>
+
+<h2 id="the-attacker-path">The attacker path</h2>
+
+<p><img src="/assets/images/flaws2-cloud/level1-challenge.png" alt="" />
+To be honest, I wasn’t sure how to approach this one, I checked my notes from flaws.cloud challenge (the first version)
+I tried looking at an incorrect submission response. I’m not sure if this is a hint but I think this is an s3 bucket URL, it follows the format.
+<img src="/assets/images/flaws2-cloud/level1-clue-1.png" alt="" />
+But I’m not allowed to access it using browser or…
+<img src="/assets/images/flaws2-cloud/level1-failed-1.png" alt="" />
+via AWS CLI.
+Completely out of ideas I decided to check the hint, and then it hit me. I didn’t even try messing with the input!
+It asked me not to bruteforce, but what if I try something else. In the source code, it’s parsing the input into a float value and probably checking if the input is a finite number.
+I tried putting in characters, numbers greater than the 100 digit limit didn’t find anything useful. Remember the s3 bucket url, it was passing input through url params, I tried changing that and it worked.
+Actually it didn’t it showed me some errors but those errors exposed some sensitive information, like AWS Access ID of someone’s account, who probably has access to that bucket.
+<img src="/assets/images/flaws2-cloud/level1-almost-solved.png" alt="" />
+Well, that didn’t go well, I tried adding this profile to my AWS CLI but it says this access key ID does not exist. That’s because I hadn’t added the session token, if MFA is enabled then I have to include the session token in the credentials as well.
+<img src="/assets/images/flaws2-cloud/level1-identity.png" alt="" />
+However, I can’t find a bucket with this url and I do not have permission to list buckets in this account.
+Maybe that’s not the bucket url…
+<img src="/assets/images/flaws2-cloud/level1-solved.png" alt="" />
+Now that I look back at it, it was pretty straight forward.</p>
+
+<h3 id="what-went-wrong-">What went wrong ?</h3>
+
+<p>AWS Lamba obtains IAM role credentials as environment variables. These are not supposed to be accessible but someimes developers tend to dump these during errors to help with debugging. That’s why when I used alphabets instead of digits the website behaved pretty well and showed me a alert dialog but the url it was sending request to showed the error message and those environment variables were exposed.</p>
+
+<h1 id="the-next-target---level-2">The next target - Level 2</h1>
+
+<p>Target : http://container.target.flaws2.cloud/
+For this one we already have a hint here, “ECR is named level2”.</p>
+
+<p>AWS ECR (Elastic Container Registry) allows users to manage and analyse various images.</p>
+
+<p>In this case, I have the name of the repository, I’ll just check if this actually exists.</p>
+
+<p><img src="/assets/images/flaws2-cloud/level2-repository-found.png" alt="" />
+<img src="/assets/images/flaw2-cloud/level2-repository-described.png" alt="" /></p>
+
+<p>I’m not sure if this going to be helpful, but I found docker login credentials.</p>
+
+<p><img src="/assets/images/flaws2-cloud/level2-login-clue.png" alt="" />
+I can use these creds to pull the docker image</p>
+:ET

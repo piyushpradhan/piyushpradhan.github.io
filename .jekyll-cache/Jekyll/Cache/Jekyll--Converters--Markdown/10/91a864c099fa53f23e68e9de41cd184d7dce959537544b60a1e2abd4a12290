@@ -1,0 +1,18 @@
+I"�<h1 id="lazyweb-vulnerabilities">LazyWeb Vulnerabilities</h1>
+
+<p>First we have the authentication, couldn’t find anything in the first attempt so I decided to register and move on to check for other vulnerabilities.</p>
+
+<p>There’s an option in dashboard to “Add Site Form” it simply lets me add some url and then ping it. I’m not sure if this can be exploited but seems pretty interesting, so I’m going to try something.
+It turns out it was actually vulnerable to command injection.</p>
+
+<p><img src="/assets/images/lazyweb/ping-exploit.png" alt="" /></p>
+
+<p>Apparently, the same form is vulnerable to XSS too</p>
+
+<p><img src="/assets/images/lazyweb/xss-add-site.png" alt="" /></p>
+
+<p>Now there is this profile picture upload feature on the update profile page.</p>
+
+<p>There’s this robots.txt lying around too, which I should have noticed sooner. It hinting towards another secret or s3cret directory.
+I can’t access this directory normally, I’m just getting redirected to the home page again</p>
+:ET
